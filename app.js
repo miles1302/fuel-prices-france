@@ -45,11 +45,12 @@ async function loadData() {
     `;
 
     try {
-        // Fetch data from our serverless backend (no CORS issues!)
-        console.log('Fetching real data from serverless API...');
+        // Fetch data using a reliable CORS proxy (since government API blocks CORS)
+        console.log('Fetching real data via CORS proxy...');
         
-        // Try serverless function first
-        let response = await fetch('/api/fuel-data', {
+        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://donnees.roulez-eco.fr/opendata/instantane');
+        
+        let response = await fetch(proxyUrl, {
             method: 'GET',
             headers: {
                 'Accept': 'application/xml, text/xml, */*'
@@ -57,12 +58,11 @@ async function loadData() {
         });
         
         console.log(`Response status: ${response.status}`);
-        console.log(`Response headers:`, [...response.headers.entries()]);
 
         if (!response.ok) {
             const errorText = await response.text();
             console.error(`Server error: ${errorText}`);
-            throw new Error(`Erreur serveur (${response.status}): ${errorText}`);
+            throw new Error(`Erreur lors du chargement (${response.status})`);
         }
 
         const xmlText = await response.text();
@@ -71,7 +71,7 @@ async function loadData() {
         // Verify we got valid XML
         if (!xmlText || !xmlText.includes('pdv')) {
             console.error('Invalid XML data received');
-            throw new Error('Données invalides reçues du serveur');
+            throw new Error('Données invalides reçues');
         }
 
         const parser = new DOMParser();
