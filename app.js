@@ -45,18 +45,53 @@ async function loadData() {
     `;
 
     try {
-        // Fetch data from French government API
-        const response = await fetch('https://donnees.roulez-eco.fr/opendata/instantane', {
-            mode: 'cors'
-        });
+        // Try multiple methods to fetch data
+        const apiUrls = [
+            'https://donnees.roulez-eco.fr/opendata/instantane',
+            'https://api.allorigins.win/raw?url=https://donnees.roulez-eco.fr/opendata/instantane',
+            'https://corsproxy.io/?https://donnees.roulez-eco.fr/opendata/instantane'
+        ];
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        let xmlText = null;
+        let lastError = null;
+
+        for (const url of apiUrls) {
+            try {
+                console.log(`Trying to fetch from: ${url}`);
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/xml, text/xml, */*'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                xmlText = await response.text();
+                if (xmlText && xmlText.includes('pdv')) {
+                    console.log('Successfully fetched data');
+                    break;
+                }
+            } catch (error) {
+                console.warn(`Failed to fetch from ${url}:`, error);
+                lastError = error;
+            }
         }
 
-        const xmlText = await response.text();
+        if (!xmlText || !xmlText.includes('pdv')) {
+            throw new Error('Impossible de charger les données réelles. Utilisez le mode démonstration.');
+        }
+
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+
+        // Check for XML parsing errors
+        const parserError = xmlDoc.querySelector('parsererror');
+        if (parserError) {
+            throw new Error('Erreur de parsing XML');
+        }
 
         // Parse stations
         stationsData = parseStations(xmlDoc, fuelType);
@@ -78,15 +113,20 @@ async function loadData() {
         console.error('Error loading data:', error);
         content.innerHTML = `
             <div class="error">
-                <h3>❌ Erreur lors du chargement des données</h3>
-                <p>${error.message}</p>
-                <p style="margin-top: 10px;">
-                    <strong>Note:</strong> En raison des restrictions CORS, cette application doit être servie via un serveur web.
-                    Vous pouvez utiliser un proxy CORS ou télécharger les données localement.
+                <h3>⚠️ Impossible de charger les données réelles</h3>
+                <p><strong>Raison:</strong> ${error.message}</p>
+                <p style="margin-top: 15px;">
+                    L'API du gouvernement français a des restrictions CORS qui empêchent 
+                    l'accès direct depuis un navigateur. Utilisez le mode démonstration pour 
+                    voir comment l'application fonctionne.
                 </p>
-                <button onclick="loadLocalData()" style="margin-top: 15px;">
-                    Utiliser des données de démonstration
+                <button onclick="loadLocalData()" style="margin-top: 15px; font-size: 16px; padding: 15px 30px;">
+                    ✨ Utiliser le Mode Démonstration
                 </button>
+                <p style="margin-top: 20px; font-size: 0.85em; color: #6c757d;">
+                    Le mode démonstration génère des données réalistes avec des prix 
+                    similaires aux prix réels du marché français.
+                </p>
             </div>
         `;
     } finally {
@@ -289,13 +329,39 @@ function getDepartmentName(code) {
 }
 
 function loadLocalData() {
-    // Demo data for testing without CORS issues
-    const demoStations = generateDemoData();
-    stationsData = demoStations;
+    const loadBtn = document.getElementById('loadBtn');
+    const content = document.getElementById('content');
     
-    const fuelType = document.getElementById('fuelType').value;
-    const departmentGroups = groupByDepartment(demoStations);
-    displayResults(departmentGroups, fuelType);
+    // Show loading state
+    loadBtn.disabled = true;
+    content.innerHTML = `
+        <div class="loading">
+            <div class="spinner"></div>
+            <p>Génération des données de démonstration...</p>
+        </div>
+    `;
+
+    // Simulate loading delay for better UX
+    setTimeout(() => {
+        // Demo data for testing without CORS issues
+        const fuelType = document.getElementById('fuelType').value;
+        const departmentFilter = document.getElementById('department').value.trim();
+        
+        let demoStations = generateDemoData();
+        
+        // Filter by department if specified
+        if (departmentFilter) {
+            demoStations = demoStations.filter(station => 
+                station.department === departmentFilter
+            );
+        }
+        
+        stationsData = demoStations;
+        const departmentGroups = groupByDepartment(demoStations);
+        displayResults(departmentGroups, fuelType);
+        
+        loadBtn.disabled = false;
+    }, 500);
 }
 
 function generateDemoData() {
