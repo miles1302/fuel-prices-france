@@ -61,12 +61,17 @@ async function loadData() {
         }
         
         const xmlText = await response.text();
-        console.log(`✓ Successfully loaded ${xmlText.length} bytes from serverless function`);
+        console.log(`✓ Received ${xmlText.length} bytes`);
+        console.log('First 500 characters:', xmlText.substring(0, 500));
         
         // Verify we got valid XML
         if (!xmlText || !xmlText.includes('pdv')) {
+            console.error('Invalid data - does not contain pdv elements');
+            console.log('Full response:', xmlText.substring(0, 2000));
             throw new Error('Données invalides reçues');
         }
+        
+        console.log('✓ Valid XML data confirmed');
 
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
