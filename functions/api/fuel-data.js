@@ -1,8 +1,7 @@
 // Cloudflare Pages Function - API endpoint for fuel data
 // This runs server-side, so no CORS issues!
 
-// Import fflate for ZIP extraction
-import { unzipSync, strFromU8 } from 'https://cdn.skypack.dev/fflate';
+import { unzipSync, strFromU8 } from 'fflate';
 
 export async function onRequest(context) {
   // Handle OPTIONS for CORS preflight
