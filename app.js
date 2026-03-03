@@ -48,24 +48,29 @@ async function loadData() {
         // Fetch data from our serverless backend (no CORS issues!)
         console.log('Fetching real data from serverless API...');
         
-        // Try serverless function first (only works on Cloudflare)
-        let response = await fetch('/api/fuel-data');
+        // Try serverless function first
+        let response = await fetch('/api/fuel-data', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/xml, text/xml, */*'
+            }
+        });
         
-        // If we get a 404, we're probably running locally or function didn't deploy
-        if (!response.ok && response.status === 404) {
-            console.log('Serverless function not available, using CORS proxy...');
-            // Fallback to a reliable CORS proxy
-            response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent('https://donnees.roulez-eco.fr/opendata/instantane'));
-        }
+        console.log(`Response status: ${response.status}`);
+        console.log(`Response headers:`, [...response.headers.entries()]);
 
         if (!response.ok) {
-            throw new Error(`Erreur serveur: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`Server error: ${errorText}`);
+            throw new Error(`Erreur serveur (${response.status}): ${errorText}`);
         }
 
         const xmlText = await response.text();
+        console.log(`Received ${xmlText.length} bytes of data`);
         
         // Verify we got valid XML
         if (!xmlText || !xmlText.includes('pdv')) {
+            console.error('Invalid XML data received');
             throw new Error('Données invalides reçues du serveur');
         }
 
