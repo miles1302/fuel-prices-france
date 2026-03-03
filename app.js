@@ -45,33 +45,48 @@ async function loadData() {
     `;
 
     try {
-        // Fetch data using a reliable CORS proxy (since government API blocks CORS)
-        console.log('Fetching real data via CORS proxy...');
+        // Try multiple CORS proxies
+        const apiUrl = 'https://donnees.roulez-eco.fr/opendata/instantane';
+        const proxies = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`,
+            `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`,
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`
+        ];
         
-        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://donnees.roulez-eco.fr/opendata/instantane');
+        let xmlText = null;
+        let lastError = null;
         
-        let response = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/xml, text/xml, */*'
+        for (const proxyUrl of proxies) {
+            try {
+                console.log(`Trying proxy: ${proxyUrl.split('?')[0]}...`);
+                
+                // Create timeout controller
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                
+                const response = await fetch(proxyUrl, {
+                    method: 'GET',
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    xmlText = await response.text();
+                    
+                    if (xmlText && xmlText.includes('pdv')) {
+                        console.log(`✓ Successfully loaded ${xmlText.length} bytes from proxy`);
+                        break;
+                    }
+                }
+            } catch (err) {
+                console.warn(`✗ Proxy failed:`, err.message);
+                lastError = err;
             }
-        });
-        
-        console.log(`Response status: ${response.status}`);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Server error: ${errorText}`);
-            throw new Error(`Erreur lors du chargement (${response.status})`);
         }
-
-        const xmlText = await response.text();
-        console.log(`Received ${xmlText.length} bytes of data`);
         
-        // Verify we got valid XML
         if (!xmlText || !xmlText.includes('pdv')) {
-            console.error('Invalid XML data received');
-            throw new Error('Données invalides reçues');
+            throw new Error('Impossible de charger les données réelles. Les serveurs proxy sont indisponibles.');
         }
 
         const parser = new DOMParser();
@@ -103,18 +118,25 @@ async function loadData() {
         console.error('Error loading data:', error);
         content.innerHTML = `
             <div class="error">
-                <h3>⚠️ Erreur de chargement des données</h3>
-                <p><strong>Raison:</strong> ${error.message}</p>
+                <h3>⚠️ Impossible de charger les données réelles</h3>
                 <p style="margin-top: 15px;">
-                    Une erreur s'est produite lors du chargement des données de l'API gouvernementale.
-                    Cela peut être dû à une indisponibilité temporaire du service.
+                    L'API du gouvernement français et tous les serveurs proxy sont actuellement indisponibles.
+                    Cela arrive parfois en raison de restrictions réseau ou de maintenance.
                 </p>
-                <button onclick="loadData()" style="margin-top: 15px; font-size: 16px; padding: 15px 30px;">
-                    🔄 Réessayer
-                </button>
-                <button onclick="loadLocalData()" style="margin-top: 10px; font-size: 16px; padding: 15px 30px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                    ✨ Mode Démonstration (en attendant)
-                </button>
+                <p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">
+                    <strong>Erreur technique:</strong> ${error.message}
+                </p>
+                <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="loadData()" style="font-size: 16px; padding: 15px 30px;">
+                        🔄 Réessayer avec les données réelles
+                    </button>
+                    <button onclick="loadLocalData()" style="font-size: 16px; padding: 15px 30px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                        ✨ Utiliser le Mode Démonstration
+                    </button>
+                </div>
+                <p style="margin-top: 15px; font-size: 0.85em; color: #6c757d;">
+                    Le mode démonstration affiche des données réalistes basées sur les prix moyens du marché français.
+                </p>
             </div>
         `;
     } finally {
