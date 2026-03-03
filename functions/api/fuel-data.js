@@ -1,6 +1,9 @@
 // Cloudflare Pages Function - API endpoint for fuel data
 // This runs server-side, so no CORS issues!
 
+// Import fflate for ZIP extraction
+import { unzipSync, strFromU8 } from 'https://cdn.skypack.dev/fflate';
+
 export async function onRequest(context) {
   // Handle OPTIONS for CORS preflight
   if (context.request.method === 'OPTIONS') {
@@ -55,28 +58,38 @@ export async function onRequest(context) {
     let xmlData;
     
     if (isZip) {
-      console.log('Response is ZIP format, decompressing...');
+      console.log('Response is ZIP format, extracting...');
       
-      // Use DecompressionStream to unzip
-      const blob = new Blob([responseData]);
-      const stream = blob.stream();
-      
-      // The ZIP contains a single XML file, we need to extract it
-      // For now, let's try to decompress using gzip decompression
       try {
-        const decompressedStream = stream.pipeThrough(new DecompressionStream('gzip'));
-        const decompressedBlob = await new Response(decompressedStream).blob();
-        xmlData = await decompressedBlob.text();
+        // Unzip the file using fflate
+        const uint8Array = new Uint8Array(responseData);
+        const unzipped = unzipSync(uint8Array);
+        
+        // The ZIP should contain one XML file
+        // Get the first (and likely only) file from the archive
+        const fileNames = Object.keys(unzipped);
+        console.log('Files in ZIP:', fileNames);
+        
+        if (fileNames.length === 0) {
+          throw new Error('ZIP archive is empty');
+        }
+        
+        // Get the first XML file
+        const xmlFileName = fileNames.find(name => name.toLowerCase().endsWith('.xml')) || fileNames[0];
+        console.log('Extracting file:', xmlFileName);
+        
+        // Convert the file data to text
+        xmlData = strFromU8(unzipped[xmlFileName]);
+        console.log(`Extracted ${xmlData.length} characters from ${xmlFileName}`);
+        
       } catch (e) {
-        console.error('Gzip decompression failed, trying as raw ZIP:', e);
-        // If gzip fails, the data might be in ZIP format which requires different handling
-        // For ZIP files, we'd need a ZIP library, but let's return an error for now
+        console.error('ZIP extraction failed:', e);
         return new Response(JSON.stringify({ 
-          error: 'Data is in ZIP format. Please download and extract manually.',
-          info: 'The government API returns compressed data that requires ZIP extraction.',
-          downloadUrl: 'https://donnees.roulez-eco.fr/opendata/instantane'
+          error: 'Failed to extract ZIP file',
+          message: e.message,
+          info: 'The compressed data could not be extracted'
         }), {
-          status: 501,
+          status: 500,
           headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
