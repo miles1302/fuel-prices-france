@@ -33,3 +33,9 @@ build/
 # Generated icons (optional - commit these if you want)
 # icon-192.png
 # icon-512.png
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
