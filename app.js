@@ -55,9 +55,19 @@ async function loadData() {
         console.log(`Response status: ${response.status}`);
         
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Function error:', errorText);
-            throw new Error(`Erreur serveur (${response.status})`);
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('Function error:', errorData);
+            throw new Error(`Erreur serveur (${response.status}): ${errorData.error || 'Unknown'}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        console.log('Content-Type:', contentType);
+        
+        // If the function returned JSON, it's an error
+        if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            console.error('Server returned error:', errorData);
+            throw new Error(errorData.error || 'Server error');
         }
         
         const xmlText = await response.text();
