@@ -45,44 +45,15 @@ async function loadData() {
     `;
 
     try {
-        // Try multiple methods to fetch data
-        const apiUrls = [
-            'https://donnees.roulez-eco.fr/opendata/instantane',
-            'https://api.allorigins.win/raw?url=https://donnees.roulez-eco.fr/opendata/instantane',
-            'https://corsproxy.io/?https://donnees.roulez-eco.fr/opendata/instantane'
-        ];
+        // Fetch data from our serverless backend (no CORS issues!)
+        console.log('Fetching real data from serverless API...');
+        const response = await fetch('/api/fuel-data');
 
-        let xmlText = null;
-        let lastError = null;
-
-        for (const url of apiUrls) {
-            try {
-                console.log(`Trying to fetch from: ${url}`);
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/xml, text/xml, */*'
-                    }
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                xmlText = await response.text();
-                if (xmlText && xmlText.includes('pdv')) {
-                    console.log('Successfully fetched data');
-                    break;
-                }
-            } catch (error) {
-                console.warn(`Failed to fetch from ${url}:`, error);
-                lastError = error;
-            }
+        if (!response.ok) {
+            throw new Error(`Erreur serveur: ${response.status}`);
         }
 
-        if (!xmlText || !xmlText.includes('pdv')) {
-            throw new Error('Impossible de charger les données réelles. Utilisez le mode démonstration.');
-        }
+        const xmlText = await response.text();
 
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
@@ -113,20 +84,18 @@ async function loadData() {
         console.error('Error loading data:', error);
         content.innerHTML = `
             <div class="error">
-                <h3>⚠️ Impossible de charger les données réelles</h3>
+                <h3>⚠️ Erreur de chargement des données</h3>
                 <p><strong>Raison:</strong> ${error.message}</p>
                 <p style="margin-top: 15px;">
-                    L'API du gouvernement français a des restrictions CORS qui empêchent 
-                    l'accès direct depuis un navigateur. Utilisez le mode démonstration pour 
-                    voir comment l'application fonctionne.
+                    Une erreur s'est produite lors du chargement des données de l'API gouvernementale.
+                    Cela peut être dû à une indisponibilité temporaire du service.
                 </p>
-                <button onclick="loadLocalData()" style="margin-top: 15px; font-size: 16px; padding: 15px 30px;">
-                    ✨ Utiliser le Mode Démonstration
+                <button onclick="loadData()" style="margin-top: 15px; font-size: 16px; padding: 15px 30px;">
+                    🔄 Réessayer
                 </button>
-                <p style="margin-top: 20px; font-size: 0.85em; color: #6c757d;">
-                    Le mode démonstration génère des données réalistes avec des prix 
-                    similaires aux prix réels du marché français.
-                </p>
+                <button onclick="loadLocalData()" style="margin-top: 10px; font-size: 16px; padding: 15px 30px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+                    ✨ Mode Démonstration (en attendant)
+                </button>
             </div>
         `;
     } finally {

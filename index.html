@@ -566,9 +566,8 @@
                 <input type="text" id="department" placeholder="Ex: 75 (Paris), 13 (Marseille)...">
             </div>
 
-            <div class="control-group" style="display: flex; gap: 10px;">
-                <button id="loadBtn" onclick="loadData()" style="flex: 1;">Charger les données réelles</button>
-                <button onclick="loadLocalData()" style="flex: 1; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">Mode Démo</button>
+            <div class="control-group">
+                <button id="loadBtn" onclick="loadData()">Charger les données</button>
             </div>
         </div>
 
@@ -576,13 +575,9 @@
             <div class="no-data">
                 <h3 style="margin-bottom: 15px;">Bienvenue ! 👋</h3>
                 <p style="margin-bottom: 10px;">Sélectionnez un type de carburant ci-dessus</p>
-                <p style="color: #6c757d; font-size: 0.9em; margin-bottom: 20px;">
-                    En raison des restrictions CORS de l'API gouvernementale,<br>
-                    nous recommandons d'utiliser le <strong>Mode Démo</strong> avec des données réalistes
+                <p style="color: #6c757d; font-size: 0.9em;">
+                    Données officielles en temps réel du gouvernement français
                 </p>
-                <button onclick="loadLocalData()" style="font-size: 16px; padding: 15px 30px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                    ✨ Essayer le Mode Démo
-                </button>
             </div>
         </div>
     </div>

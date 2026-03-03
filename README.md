@@ -6,7 +6,8 @@ Application web Progressive (PWA) qui affiche le top 10 des stations-service les
 
 - ✅ **Progressive Web App (PWA)** - Installable sur mobile et desktop
 - ✅ **Fonctionne offline** - Service Worker avec cache
-- ✅ Données en temps réel depuis l'API officielle du gouvernement français
+- ✅ **Données en temps réel** depuis l'API officielle du gouvernement français
+- ✅ **Backend serverless** - Cloudflare Functions pour contourner CORS
 - ✅ Filtrage par type de carburant (SP95, SP98, E10, Gazole, E85, GPLc)
 - ✅ Filtrage par département (optionnel)
 - ✅ Top 10 des stations les moins chères par département
@@ -14,7 +15,7 @@ Application web Progressive (PWA) qui affiche le top 10 des stations-service les
 - ✅ Interface responsive et moderne
 - ✅ Optimisée pour mobile (touch-friendly)
 - ✅ Liens vers Google Maps pour chaque station
-- ✅ Mode démo avec données générées (pour tests sans serveur)
+- ✅ Mode démo de secours (si API indisponible)
 - ✅ Raccourcis d'application (accès direct à SP95, Diesel)
 
 ## Source de Données
