@@ -1,9 +1,0 @@
-{
-  "name": "fuel-prices-france",
-  "version": "1.0.0",
-  "description": "French fuel prices PWA",
-  "type": "module",
-  "dependencies": {
-    "fflate": "^0.8.2"
-  }
-}

@@ -1,7 +1,47 @@
 // Cloudflare Pages Function - API endpoint for fuel data
 // This runs server-side, so no CORS issues!
 
-import { unzipSync, strFromU8 } from 'fflate';
+// Simple ZIP extraction function
+function extractZip(zipData) {
+  const data = new Uint8Array(zipData);
+  
+  // Find the local file header (0x04034b50)
+  let offset = 0;
+  for (let i = 0; i < data.length - 4; i++) {
+    if (data[i] === 0x50 && data[i+1] === 0x4b && data[i+2] === 0x03 && data[i+3] === 0x04) {
+      offset = i;
+      break;
+    }
+  }
+  
+  if (offset === 0 && !(data[0] === 0x50 && data[1] === 0x4b)) {
+    throw new Error('Not a valid ZIP file');
+  }
+  
+  // Read header fields
+  const fileNameLength = data[offset + 26] | (data[offset + 27] << 8);
+  const extraFieldLength = data[offset + 28] | (data[offset + 29] << 8);
+  const compressionMethod = data[offset + 8] | (data[offset + 9] << 8);
+  const compressedSize = data[offset + 18] | (data[offset + 19] << 8) | (data[offset + 20] << 16) | (data[offset + 21] << 24);
+  
+  // Start of compressed data
+  const dataStart = offset + 30 + fileNameLength + extraFieldLength;
+  const compressedData = data.slice(dataStart, dataStart + compressedSize);
+  
+  // If stored (no compression)
+  if (compressionMethod === 0) {
+    return new TextDecoder('utf-8').decode(compressedData);
+  }
+  
+  // If deflated (compression method 8)
+  if (compressionMethod === 8) {
+    // Use DecompressionStream (available in Cloudflare Workers)
+    const stream = new Blob([compressedData]).stream();
+    return stream.pipeThrough(new DecompressionStream('deflate-raw'));
+  }
+  
+  throw new Error(`Unsupported compression method: ${compressionMethod}`);
+}
 
 export async function onRequest(context) {
   // Handle OPTIONS for CORS preflight
@@ -60,26 +100,17 @@ export async function onRequest(context) {
       console.log('Response is ZIP format, extracting...');
       
       try {
-        // Unzip the file using fflate
-        const uint8Array = new Uint8Array(responseData);
-        const unzipped = unzipSync(uint8Array);
+        // Extract ZIP file
+        const result = extractZip(responseData);
         
-        // The ZIP should contain one XML file
-        // Get the first (and likely only) file from the archive
-        const fileNames = Object.keys(unzipped);
-        console.log('Files in ZIP:', fileNames);
-        
-        if (fileNames.length === 0) {
-          throw new Error('ZIP archive is empty');
+        // If it's a stream (deflate compressed), convert to text
+        if (result instanceof ReadableStream) {
+          xmlData = await new Response(result).text();
+        } else {
+          xmlData = result;
         }
         
-        // Get the first XML file
-        const xmlFileName = fileNames.find(name => name.toLowerCase().endsWith('.xml')) || fileNames[0];
-        console.log('Extracting file:', xmlFileName);
-        
-        // Convert the file data to text
-        xmlData = strFromU8(unzipped[xmlFileName]);
-        console.log(`Extracted ${xmlData.length} characters from ${xmlFileName}`);
+        console.log(`Extracted ${xmlData.length} characters from ZIP`);
         
       } catch (e) {
         console.error('ZIP extraction failed:', e);
