@@ -45,48 +45,27 @@ async function loadData() {
     `;
 
     try {
-        // Try multiple CORS proxies
-        const apiUrl = 'https://donnees.roulez-eco.fr/opendata/instantane';
-        const proxies = [
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`,
-            `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`,
-            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(apiUrl)}`
-        ];
+        // Use our Cloudflare Pages serverless function (no CORS issues!)
+        console.log('Fetching data from serverless function...');
         
-        let xmlText = null;
-        let lastError = null;
+        const response = await fetch('/api/fuel-data', {
+            method: 'GET'
+        });
         
-        for (const proxyUrl of proxies) {
-            try {
-                console.log(`Trying proxy: ${proxyUrl.split('?')[0]}...`);
-                
-                // Create timeout controller
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-                
-                const response = await fetch(proxyUrl, {
-                    method: 'GET',
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                
-                if (response.ok) {
-                    xmlText = await response.text();
-                    
-                    if (xmlText && xmlText.includes('pdv')) {
-                        console.log(`✓ Successfully loaded ${xmlText.length} bytes from proxy`);
-                        break;
-                    }
-                }
-            } catch (err) {
-                console.warn(`✗ Proxy failed:`, err.message);
-                lastError = err;
-            }
+        console.log(`Response status: ${response.status}`);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Function error:', errorText);
+            throw new Error(`Erreur serveur (${response.status})`);
         }
         
+        const xmlText = await response.text();
+        console.log(`✓ Successfully loaded ${xmlText.length} bytes from serverless function`);
+        
+        // Verify we got valid XML
         if (!xmlText || !xmlText.includes('pdv')) {
-            throw new Error('Impossible de charger les données réelles. Les serveurs proxy sont indisponibles.');
+            throw new Error('Données invalides reçues');
         }
 
         const parser = new DOMParser();
@@ -118,24 +97,24 @@ async function loadData() {
         console.error('Error loading data:', error);
         content.innerHTML = `
             <div class="error">
-                <h3>⚠️ Impossible de charger les données réelles</h3>
+                <h3>⚠️ Service temporairement indisponible</h3>
                 <p style="margin-top: 15px;">
-                    L'API du gouvernement français et tous les serveurs proxy sont actuellement indisponibles.
-                    Cela arrive parfois en raison de restrictions réseau ou de maintenance.
+                    Les données officielles ne peuvent pas être chargées pour le moment.
+                    Cela peut être dû à une maintenance de l'API gouvernementale.
                 </p>
                 <p style="margin-top: 10px; font-size: 0.9em; color: #6c757d;">
-                    <strong>Erreur technique:</strong> ${error.message}
+                    <strong>Erreur:</strong> ${error.message}
                 </p>
-                <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; max-width: 400px; margin-left: auto; margin-right: auto;">
                     <button onclick="loadData()" style="font-size: 16px; padding: 15px 30px;">
-                        🔄 Réessayer avec les données réelles
+                        🔄 Réessayer
                     </button>
                     <button onclick="loadLocalData()" style="font-size: 16px; padding: 15px 30px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-                        ✨ Utiliser le Mode Démonstration
+                        ✨ Voir des données de démonstration
                     </button>
                 </div>
                 <p style="margin-top: 15px; font-size: 0.85em; color: #6c757d;">
-                    Le mode démonstration affiche des données réalistes basées sur les prix moyens du marché français.
+                    Les données de démonstration affichent des prix réalistes pour 10 départements français
                 </p>
             </div>
         `;
