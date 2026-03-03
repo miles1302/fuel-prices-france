@@ -89,24 +89,32 @@ async function loadData() {
         // Check for XML parsing errors
         const parserError = xmlDoc.querySelector('parsererror');
         if (parserError) {
+            console.error('XML parsing error:', parserError.textContent);
             throw new Error('Erreur de parsing XML');
         }
 
+        console.log('XML parsed successfully');
+
         // Parse stations
         stationsData = parseStations(xmlDoc, fuelType);
+        console.log(`Parsed ${stationsData.length} stations with ${fuelType}`);
 
         // Filter by department if specified
         if (departmentFilter) {
+            const beforeFilter = stationsData.length;
             stationsData = stationsData.filter(station => 
                 station.department === departmentFilter
             );
+            console.log(`Filtered from ${beforeFilter} to ${stationsData.length} stations for department ${departmentFilter}`);
         }
 
         // Group by department and get top 10 for each
         const departmentGroups = groupByDepartment(stationsData);
+        console.log(`Grouped into ${Object.keys(departmentGroups).length} departments`);
         
         // Display results
         displayResults(departmentGroups, fuelType);
+        console.log('Results displayed successfully');
 
     } catch (error) {
         console.error('Error loading data:', error);
@@ -142,6 +150,9 @@ function parseStations(xmlDoc, fuelType) {
     const stations = [];
     const pdvElements = xmlDoc.getElementsByTagName('pdv');
     const fuelTag = fuelTypeMapping[fuelType];
+
+    console.log(`Found ${pdvElements.length} total stations in XML`);
+    console.log(`Looking for fuel type: ${fuelType} (XML tag: ${fuelTag})`);
 
     for (let pdv of pdvElements) {
         const cp = pdv.getAttribute('cp');
@@ -180,6 +191,7 @@ function parseStations(xmlDoc, fuelType) {
         stations.push(station);
     }
 
+    console.log(`Found ${stations.length} stations with ${fuelType}`);
     return stations;
 }
 
